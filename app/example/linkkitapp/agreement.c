@@ -2,6 +2,7 @@
 #include "string.h"
 #include <aos/hal/uart.h>
 #include <aos/hal/gpio.h>
+#include <aos/hal/flash.h>
 #include "crc.h"
 #include "time.h"
 #include "iot_export.h"
@@ -20,7 +21,7 @@ aos_timer_t  g_timer;
 aos_timer_t  a_timer;
 gpio_dev_t led;
 //timer_dev_t timer1;
-
+CurrentTime nowtime;
 int count   = 0;
 int ret     = -1;
 int i       = 0;
@@ -35,8 +36,31 @@ uint8_t PortPro;
 uint8_t TimeInt;
 uint8_t HeartPoint;
 uint8_t LedPoint;
-
-
+uint8_t property1[30];
+uint8_t property2[30];
+uint8_t property3[30];
+uint8_t property4[30];
+uint8_t property5[30];
+uint8_t property6[30];
+uint8_t property7[30];
+uint8_t property8[30];
+uint8_t property9[30];
+uint8_t propertyA[30];
+uint8_t note;
+uint8_t order;
+uint8_t connum[6];
+uint8_t connumII[2];
+uint8_t offtime[30];
+uint8_t room2temp[30];
+uint8_t ontime[30];
+uint8_t room1temp[30];
+uint8_t tank[30];
+uint8_t room3temp[30];
+uint8_t tanktemp[30];
+uint8_t room1tempII[30];
+uint8_t room2tempII[30];
+uint8_t room3tempII[30];
+uint8_t erasepoint=0;
 ////////////////////////////////////////////下行帧数组//////////////////////////////////////////
 
 uint8_t HeartbeatDown[10]={0xEE,0xEE,0x00,0x06,0x01,0x01,0x75,0x20,0xFF,0xFF};
@@ -49,7 +73,7 @@ uint8_t TimerTimeSetDown[18]={0xEE,0xEE,0x00,0x0C,0x07,0x01,0x01,0x00,0x02,0x00,
 uint8_t TimerSwitchSetDown[10]={0xEE,0xEE,0x00,0x06,0x08,0x01,0x25,0x26,0xFF,0xFF};
 uint8_t ControlModeSetDown[10]={0xEE,0xEE,0x00,0x06,0x09,0x01,0xB5,0x27,0xFF,0xFF};
 uint8_t SwitchSetDown[10]={0xEE,0xEE,0x00,0x06,0x0A,0x01,0x45,0x27,0xFF,0xFF};
-
+uint8_t CurrentTimeDown[11]={0xEE,0xEE,0x00,0x07,0x0B,0x09,0x00,0xE6,0x52,0xFF,0xFF};
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 void Timer_Init(void)//2S发送一次心跳包
@@ -445,6 +469,34 @@ void SwitchUpHandle(uint8_t *rxdata)
 		user_post_event();
 	}
 }
+void CurrentTimeSetHandle(uint8_t *rxdata)
+{
+	for(i=0;i<10;i++)
+	{
+		CRCNUM=CalCrc16(rxdata+2,4,0xFFFF);
+		if(CRCNUM==(rxdata[6]<<8)+rxdata[7])
+		{
+			if(rxdata[5]==0xAA)break;
+			else
+			{
+				ret = hal_uart_send(&uart1, CurrentTimeDown, sizeof(CurrentTimeDown), UART_TX_TIMEOUT);	
+				ret = hal_uart_recv_II(&uart1, rxdata, UART_BUF_SIZE,
+                               &rx_size, UART_RX_TIMEOUT);
+			}
+		}			
+		else
+		{
+			ret = hal_uart_send(&uart1, CurrentTimeDown, sizeof(CurrentTimeDown), UART_TX_TIMEOUT);	
+			ret = hal_uart_recv_II(&uart1, rxdata, UART_BUF_SIZE,
+                               &rx_size, UART_RX_TIMEOUT);
+		}
+	}
+	if(i==10)
+	{
+		ErrorCmd=1;
+		user_post_event();
+	}
+}
 ////////////////////////////////////////////////////////////////////
 
 ///////////////////////////根据服务器发送来的操作发送下行帧////////////////////////////////
@@ -480,9 +532,10 @@ void DistributionDownFun(void)
 		CRCNUM=CalCrc16(DistributionNetworkDown+2,4,0xFFFF);
 		DistributionNetworkDown[6]=CRCNUM/(1<<8);
 		DistributionNetworkDown[7]=CRCNUM%(1<<8);
-		awss_report_reset();
+		
 		netmgr_clear_ap_config();
-
+		awss_report_reset();
+		ret=hal_flash_erase(HAL_PARTITION_PARAMETER_2, erasepoint, 1024);
     HAL_Reboot();
 		
 		//awss_config_press();
@@ -510,11 +563,34 @@ void DiffSetDownFun(uint8_t *RequestARR)
 		WaterboxSetDown[6]=(RequestARR[8]-48)*10+(RequestARR[9]-48);
 	}	
 }
+void checklabelII(uint8_t *pro)
+{
+	if(strstr(pro,"room1TemperSet"))
+	memcpy(room1tempII,pro,30);
+	else if(strstr(pro,"room2TemperSet"))
+	memcpy(room2tempII,pro,30);
+	else if(strstr(pro,"room3TemperSet"))
+	memcpy(room3tempII,pro,30);
+}
 void RoomTemSetDownFun(uint8_t *RequestARR)
 {
-	RoomTemperatureSetDown[5]=(RequestARR[38]-48)*10+(RequestARR[39]-48);
-	RoomTemperatureSetDown[6]=(RequestARR[18]-48)*10+(RequestARR[19]-48);
-	RoomTemperatureSetDown[7]=(RequestARR[58]-48)*10+(RequestARR[59]-48);
+	order=0;
+	for(note=0;note<61;note++)
+	{
+		if(RequestARR[note]==',')
+		{
+			connumII[order++]=note;
+		}
+	}
+	memcpy(property8,RequestARR+1,connumII[0]-1);
+	memcpy(property9,RequestARR+connumII[0]+1,connumII[1]-connumII[0]-1);
+	memcpy(propertyA,RequestARR+connumII[1]+1,60-connumII[1]-1);
+	checklabelII(property8);
+	checklabelII(property9);
+	checklabelII(propertyA);
+	RoomTemperatureSetDown[5]=(room1tempII[17]-48)*10+(room1tempII[18]-48);
+	RoomTemperatureSetDown[6]=(room2tempII[17]-48)*10+(room2tempII[18]-48);
+	RoomTemperatureSetDown[7]=(room3tempII[17]-48)*10+(room3tempII[18]-48);
 	CRCNUM=CalCrc16(RoomTemperatureSetDown+2,6,0xFFFF);
 	RoomTemperatureSetDown[8]=CRCNUM/(1<<8);
 	RoomTemperatureSetDown[9]=CRCNUM%(1<<8);
@@ -526,25 +602,64 @@ void WaterpumpTemperSetDownFun(uint8_t *RequestARR)
 	WaterpumpTemperatureSetDown[6]=CRCNUM/(1<<8);
 	WaterpumpTemperatureSetDown[7]=CRCNUM%(1<<8);
 }
+void checklabel(uint8_t *pro)
+{
+	if(strstr(pro,"timePowerOff"))
+	memcpy(offtime,pro,30);
+	else if(strstr(pro,"room2TemperSet"))
+	memcpy(room2temp,pro,30);
+	else if(strstr(pro,"timePowerOn"))
+	memcpy(ontime,pro,30);
+	else if(strstr(pro,"room1TemperSet"))
+	memcpy(room1temp,pro,30);
+	else if(strstr(pro,"tankIndex"))
+	memcpy(tank,pro,30);
+	else if(strstr(pro,"room3TemperSet"))
+	memcpy(room3temp,pro,30);
+	else if(strstr(pro,"TankTargetTemper"))
+	memcpy(tanktemp,pro,30);
+}
 void TimeSetDownFun(uint8_t *RequestARR)
 {
+	order=0;
+	for(note=0;note<158;note++)
+	{
+		if(RequestARR[note]==',')
+		{
+			connum[order++]=note;
+		}
+	}
+	memcpy(property1,RequestARR+1,connum[0]-1);
+	memcpy(property2,RequestARR+connum[0]+1,connum[1]-connum[0]-1);
+	memcpy(property3,RequestARR+connum[1]+1,connum[2]-connum[1]-1);
+	memcpy(property4,RequestARR+connum[2]+1,connum[3]-connum[2]-1);
+	memcpy(property5,RequestARR+connum[3]+1,connum[4]-connum[3]-1);
+	memcpy(property6,RequestARR+connum[4]+1,connum[5]-connum[4]-1);
+	memcpy(property7,RequestARR+connum[5]+1,157-connum[5]-1);
+	checklabel(property1);
+	checklabel(property2);
+	checklabel(property3);
+	checklabel(property4);
+	checklabel(property5);
+	checklabel(property6);
+	checklabel(property7);
 	struct tm *OffTime;
     time_t lt;
-    lt =(RequestARR[17]-48)*1000000000+(RequestARR[18]-48)*100000000+
-		(RequestARR[19]-48)*10000000+(RequestARR[20]-48)*1000000+
-		(RequestARR[21]-48)*100000+(RequestARR[22]-48)*10000+
-		(RequestARR[23]-48)*1000+(RequestARR[24]-48)*100+
-		(RequestARR[25]-48)*10+(RequestARR[26]-48)+(8*3600);
+    lt =(offtime[16]-48)*1000000000+(offtime[17]-48)*100000000+
+		(offtime[18]-48)*10000000+(offtime[19]-48)*1000000+
+		(offtime[20]-48)*100000+(offtime[21]-48)*10000+
+		(offtime[22]-48)*1000+(offtime[23]-48)*100+
+		(offtime[24]-48)*10+(offtime[25]-48)+(8*3600);
     OffTime=localtime(&lt);
 		TimerTimeSetDown[8]=OffTime->tm_hour;
 		TimerTimeSetDown[9]=OffTime->tm_min;
 	struct tm *OnTime;
 	  time_t tl;
-    tl =(RequestARR[67]-48)*1000000000+(RequestARR[68]-48)*100000000+
-		(RequestARR[69]-48)*10000000+(RequestARR[70]-48)*1000000+
-		(RequestARR[71]-48)*100000+(RequestARR[72]-48)*10000+
-		(RequestARR[73]-48)*1000+(RequestARR[74]-48)*100+
-		(RequestARR[75]-48)*10+(RequestARR[76]-48)+(8*3600);
+    tl =(ontime[15]-48)*1000000000+(ontime[16]-48)*100000000+
+		(ontime[17]-48)*10000000+(ontime[18]-48)*1000000+
+		(ontime[19]-48)*100000+(ontime[20]-48)*10000+
+		(ontime[21]-48)*1000+(ontime[22]-48)*100+
+		(ontime[23]-48)*10+(ontime[24]-48)+(8*3600);
     OnTime=localtime(&tl);
         //HAL_Printf("second:%d\n",ptr->tm_sec);
         //HAL_Printf("minute:%d\n",ptr->tm_min);
@@ -552,14 +667,14 @@ void TimeSetDownFun(uint8_t *RequestARR)
         //HAL_Printf("mday:%d\n",ptr->tm_mday);
         //HAL_Printf("month:%d\n",ptr->tm_mon+1);
         //HAL_Printf("year:%d\n",ptr->tm_year+1900);
-	TimerTimeSetDown[5]=RequestARR[114]-48;
+	TimerTimeSetDown[5]=tank[12]-48;
 	TimerTimeSetDown[6]=OnTime->tm_hour;
 	TimerTimeSetDown[7]=OnTime->tm_min;
 	
-	TimerTimeSetDown[10]=(RequestARR[155]-48)*10+(RequestARR[156]-48);
-	TimerTimeSetDown[11]=(RequestARR[99]-48)*10+(RequestARR[100]-48);
-	TimerTimeSetDown[12]=(RequestARR[49]-48)*10+(RequestARR[50]-48);
-	TimerTimeSetDown[13]=(RequestARR[133]-48)*10+(RequestARR[134]-48);
+	TimerTimeSetDown[10]=(tanktemp[19]-48)*10+(tanktemp[20]-48);
+	TimerTimeSetDown[11]=(room1temp[17]-48)*10+(room1temp[18]-48);
+	TimerTimeSetDown[12]=(room2temp[17]-48)*10+(room2temp[18]-48);
+	TimerTimeSetDown[13]=(room3temp[17]-48)*10+(room3temp[18]-48);
 	CRCNUM=CalCrc16(TimerTimeSetDown+2,12,0xFFFF);
 	TimerTimeSetDown[14]=CRCNUM/(1<<8);
 	TimerTimeSetDown[15]=CRCNUM%(1<<8);
@@ -584,6 +699,14 @@ void SwitchSetDownFun(uint8_t *RequestARR)
 	CRCNUM=CalCrc16(SwitchSetDown+2,4,0xFFFF);
 	SwitchSetDown[6]=CRCNUM/(1<<8);
 	SwitchSetDown[7]=CRCNUM%(1<<8);
+}
+void CurrentTimeSetDownFun(void)
+{
+	CurrentTimeDown[5]=nowtime.hour;
+	CurrentTimeDown[6]=nowtime.min;
+	CRCNUM=CalCrc16(CurrentTimeDown+2,5,0xFFFF);
+	ControlModeSetDown[8]=CRCNUM/(1<<8);
+	ControlModeSetDown[9]=CRCNUM%(1<<8);
 }
 void ForceSetDownFun(void)
 {
@@ -645,6 +768,9 @@ void AgrMentDownFun(uint8_t downcmd,uint8_t *requestarr)
 		SwitchSetDownFun(requestarr);
 		ret = hal_uart_send(&uart1, SwitchSetDown, sizeof(SwitchSetDown), UART_TX_TIMEOUT);
 		break;
+		case TimeSetCmd:
+		CurrentTimeSetDownFun();
+		ret = hal_uart_send(&uart1, CurrentTimeDown, sizeof(CurrentTimeDown), UART_TX_TIMEOUT);
 		case ForceCmd:
 		ForceSetDownFun();
 		break;
@@ -690,6 +816,9 @@ void AgrMentUpHandle(uint8_t UpCmd,uint8_t *rxdata)
 		break;
 		case SwitchCmd:
 		SwitchUpHandle(rxdata);
+		break;
+		case TimeSetCmd:
+		CurrentTimeSetHandle(rxdata);
 		break;
 		default:
 		break;

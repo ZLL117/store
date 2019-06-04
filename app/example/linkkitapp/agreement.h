@@ -4,6 +4,11 @@
 #include "aos/kernel.h"
 #include "stdint.h"
 
+typedef struct
+{
+	uint8_t hour;
+	uint8_t min;
+}CurrentTime;
 enum SetCmd
 {
 	HeartbeatCmd=0x01,
@@ -16,6 +21,7 @@ enum SetCmd
 	TimerSwitchCmd,
 	ControlModeCmd,
 	SwitchCmd,
+	TimeSetCmd,
 	ForceCmd
 };
 

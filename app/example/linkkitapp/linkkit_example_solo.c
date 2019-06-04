@@ -41,6 +41,7 @@ extern uint8_t ErrorCmd;
 extern uint8_t PortPro;
 extern uint8_t TimeInt;
 extern char NULLARR[1];
+extern CurrentTime nowtime;
 uint8_t TimeIntMin=0;
 uint32_t TimeChange;
 uint8_t portidex=0;
@@ -48,7 +49,7 @@ uint8_t portindex;
 uint8_t Times=0;
 uint8_t ProEvent=0;
 uint8_t FlashData[4096];
-
+uint8_t TimeStamp[13];
 uint8_t testt[20];
 uint8_t testtt[32];
 #if USE_CUSTOME_DOMAIN
@@ -415,7 +416,20 @@ static int user_trigger_event_reply_event_handler(const int devid, const int msg
 static int user_timestamp_reply_event_handler(const char *timestamp)
 {
     //EXAMPLE_TRACE("Current Timestamp: %s", timestamp);
-
+    strcpy(TimeStamp,timestamp);
+    struct tm *currentTime;
+    time_t ct;
+    ct =(TimeStamp[1]-48)*1000000000+(TimeStamp[17]-48)*100000000+
+		(TimeStamp[18]-48)*10000000+(TimeStamp[19]-48)*1000000+
+		(TimeStamp[20]-48)*100000+(TimeStamp[21]-48)*10000+
+		(TimeStamp[22]-48)*1000+(TimeStamp[23]-48)*100+
+		(TimeStamp[24]-48)*10+(TimeStamp[25]-48)+(8*3600);
+    currentTime=localtime(&ct);
+		nowtime.hour=currentTime->tm_hour;
+		nowtime.min=currentTime->tm_min;
+    AgrMentDownFun(TimeSetCmd,NULLARR);
+    memset(UpData,0,sizeof(UpData));
+    AgrMentUpHandle(TimeSetCmd,UpData); 
     return 0;
 }
 
@@ -1004,7 +1018,7 @@ static int user_master_dev_available(void)
 void set_iotx_info()
 {
     memset(FlashData,0,sizeof(FlashData));
-    spi_flash_read(0x1f7000, (uint32_t *)&FlashData, 4096);
+    spi_flash_read(0x1f6000, (uint32_t *)&FlashData, 4096);
     if(FlashData[1076]!=0xFF)
     {
         memcpy(device_name,FlashData+1024,20);
@@ -1103,6 +1117,9 @@ int linkkit_main(void *paras)
         return -1;
     }
     //HeartPoint=1;
+    char buffer[128] = {0};
+    int buffer_length = 128;
+    IOT_Linkkit_Query(user_example_ctx->master_devid,ITM_MSG_QUERY_TIMESTAMP,(unsigned char *)buffer,buffer_length);
     time_begin_sec = user_update_sec();
     
 

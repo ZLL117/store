@@ -428,26 +428,26 @@ int application_start(int argc, char **argv)
     aos_set_log_level(AOS_LL_NONE);
     Uart1_Init();
     GPIO_INIT();
-    spi_flash_read(0x1f7000, (uint32_t *)&read_data, LEN*4);
+    spi_flash_read(0x1f6000, (uint32_t *)&read_data, LEN*4);
     while(read_data[1076]==0xff)
     {
         memset(rxbuff,0,sizeof(rxbuff));
         haaa = hal_uart_recv_II(&uart1, rxbuff, 23,&rxsizes, 10);
         if(strstr(rxbuff,"read"))
         {
-            spi_flash_read(0x1f7000, (uint32_t *)&read_data, LEN*4);
+            spi_flash_read(0x1f6000, (uint32_t *)&read_data, LEN*4);
             haaa = hal_uart_send(&uart1, read_data, 4096, 10);
         }
         if(strstr(rxbuff,"erase"))
         {
-            haaa=hal_flash_erase(HAL_PARTITION_PARAMETER_2, haha, 1024);
+            haaa=hal_flash_erase(HAL_PARTITION_PARAMETER_1, haha, 1024);
             HAL_Printf("%d",haaa);
         }
         if(strstr(rxbuff,"set"))
         {
             memcpy(tttt,rxbuff+3,rxsizes-3);
             char *pp=tttt; 
-            haaa=hal_flash_write(HAL_PARTITION_PARAMETER_2, &haha, pp, 20);
+            haaa=hal_flash_write(HAL_PARTITION_PARAMETER_1, &haha, pp, 20);
             HAL_Printf("%d",haaa);
         }
         if(strstr(rxbuff,"break"))
