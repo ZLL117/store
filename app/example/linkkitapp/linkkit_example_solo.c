@@ -104,7 +104,7 @@ void example_free(void *ptr)
 static int user_connected_event_handler(void)
 {
     user_example_ctx_t *user_example_ctx = user_example_get_ctx();
-    LedPoint=1;
+    LedPoint=1;//联网成功后指示灯常亮
     hal_gpio_output_high(&led);
     //EXAMPLE_TRACE("Cloud Connected");
     user_example_ctx->cloud_connected = 1;
@@ -763,7 +763,7 @@ void user_post_event(void)
         event_payload = "{\"ErrorCode\":1}";
         res = IOT_Linkkit_TriggerEvent(user_example_ctx->master_devid, event_id, strlen(event_id),
                                    event_payload, strlen(event_payload));
-        IOT_Linkkit_Close(user_example_ctx->master_devid);
+        IOT_Linkkit_Close(user_example_ctx->master_devid);//断网
     }
     else
     {
@@ -1064,18 +1064,18 @@ int linkkit_main(void *paras)
 
     memset(user_example_ctx, 0, sizeof(user_example_ctx_t));
 
-    IOT_SetLogLevel(IOT_LOG_NONE);
+    IOT_SetLogLevel(IOT_LOG_NONE);//选择不打印联网数据
 
     /* Register Callback */
     IOT_RegisterCallback(ITE_CONNECT_SUCC, user_connected_event_handler);
     IOT_RegisterCallback(ITE_DISCONNECTED, user_disconnected_event_handler);
     IOT_RegisterCallback(ITE_RAWDATA_ARRIVED, user_down_raw_data_arrived_event_handler);
-    IOT_RegisterCallback(ITE_SERVICE_REQUST, user_service_request_event_handler);
-    IOT_RegisterCallback(ITE_PROPERTY_SET, user_property_set_event_handler);
+    IOT_RegisterCallback(ITE_SERVICE_REQUST, user_service_request_event_handler);//下发服务
+    IOT_RegisterCallback(ITE_PROPERTY_SET, user_property_set_event_handler);//下发属性
     IOT_RegisterCallback(ITE_PROPERTY_GET, user_property_get_event_handler);
     IOT_RegisterCallback(ITE_REPORT_REPLY, user_report_reply_event_handler);
     IOT_RegisterCallback(ITE_TRIGGER_EVENT_REPLY, user_trigger_event_reply_event_handler);
-    IOT_RegisterCallback(ITE_TIMESTAMP_REPLY, user_timestamp_reply_event_handler);
+    IOT_RegisterCallback(ITE_TIMESTAMP_REPLY, user_timestamp_reply_event_handler);//下发当前时间
     IOT_RegisterCallback(ITE_INITIALIZE_COMPLETED, user_initialized);
     IOT_RegisterCallback(ITE_FOTA, user_fota_event_handler);
     IOT_RegisterCallback(ITE_COTA, user_cota_event_handler);
@@ -1119,7 +1119,7 @@ int linkkit_main(void *paras)
     //HeartPoint=1;
     char buffer[128] = {0};
     int buffer_length = 128;
-    IOT_Linkkit_Query(user_example_ctx->master_devid,ITM_MSG_QUERY_TIMESTAMP,(unsigned char *)buffer,buffer_length);
+    IOT_Linkkit_Query(user_example_ctx->master_devid,ITM_MSG_QUERY_TIMESTAMP,(unsigned char *)buffer,buffer_length);//上报查询当前时间请求
     time_begin_sec = user_update_sec();
     
 
@@ -1138,42 +1138,22 @@ int linkkit_main(void *paras)
         }
         if(ErrorCmd==2)
         {
-            //HAL_Printf("TESTTTTTTTTTTTTTTTTTT\n");
             user_example_ctx->master_devid = IOT_Linkkit_Open(IOTX_LINKKIT_DEV_TYPE_MASTER, &master_meta_info);
-            res = IOT_Linkkit_Connect(user_example_ctx->master_devid);
+            res = IOT_Linkkit_Connect(user_example_ctx->master_devid);//联网
             ErrorCmd=0;
         }
         
         
         //test();
-        user_post_property();
+        user_post_property();//上报属性
 
         
         
         /* Post Event Example */
         if (time_now_sec % 61 == 0 && user_master_dev_available()) {
-            user_post_event();
+            user_post_event();//上报服务
         }
-        /*memset(rxbuff,0,20);
-        res = hal_uart_recv_II(&uart1, rxbuff, 23,&rxsizes, 10);
-        if(strstr(rxbuff,"read"))
-        {
-            spi_flash_read(0x1f6000, (uint32_t *)&read_data, LEN*4);
-            res = hal_uart_send(&uart1, read_data, sizeof(read_data), 10);
-        }
-        if(strstr(rxbuff,"erase"))
-        {
-            haaa=hal_flash_erase(HAL_PARTITION_PARAMETER_1, haha, 1024);
-            HAL_Printf("%d",haaa);
-        }
-        if(strstr(rxbuff,"set"))
-        {
-            memcpy(tttt,rxbuff+3,rxsizes);
-            char *pp=tttt; 
-            haaa=hal_flash_write(HAL_PARTITION_PARAMETER_1, &haha, pp, 20);
-            HAL_Printf("%d",haaa);
-            
-        }*/
+        
 
         /* Device Info Update Example */
         //if (time_now_sec % 23 == 0 && user_master_dev_available()) {

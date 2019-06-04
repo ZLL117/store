@@ -429,7 +429,7 @@ int application_start(int argc, char **argv)
     Uart1_Init();
     GPIO_INIT();
     spi_flash_read(0x1f6000, (uint32_t *)&read_data, LEN*4);
-    while(read_data[1076]==0xff)
+    while(read_data[1076]==0xff)//若未写入三元组，则不进入配网程序
     {
         memset(rxbuff,0,sizeof(rxbuff));
         haaa = hal_uart_recv_II(&uart1, rxbuff, 23,&rxsizes, 10);
@@ -457,13 +457,13 @@ int application_start(int argc, char **argv)
     }
     
     HeartPoint=1;
-    Timer_Init();
+    Timer_Init();//开启心跳包时钟
     netmgr_init();
     //awss_report_reset();
     //awss_start();
     //netmgr_clear_ap_config();
     
-    awss_config_press();
+    awss_config_press();//确认配网
     
     //aos_register_event_filter(EV_KEY, linkkit_key_process, NULL);
     aos_register_event_filter(EV_WIFI, wifi_service_event, NULL);

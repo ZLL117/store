@@ -76,10 +76,10 @@ uint8_t SwitchSetDown[10]={0xEE,0xEE,0x00,0x06,0x0A,0x01,0x45,0x27,0xFF,0xFF};
 uint8_t CurrentTimeDown[11]={0xEE,0xEE,0x00,0x07,0x0B,0x09,0x00,0xE6,0x52,0xFF,0xFF};
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
-void Timer_Init(void)//2S发送一次心跳包
+void Timer_Init(void)
 {
-	ret = aos_timer_new(&g_timer, timer_handler, NULL, 1000, 1);
-	ret = aos_timer_new(&a_timer, timer_handlerII, NULL, 100, 1);
+	ret = aos_timer_new(&g_timer, timer_handler, NULL, 1000, 1);//1S发送一次心跳包
+	ret = aos_timer_new(&a_timer, timer_handlerII, NULL, 100, 1);//100MS发送一次心跳包
 }
 static void timer_handler(void *arg1, void* arg2)
 {
@@ -93,7 +93,7 @@ static void timer_handler(void *arg1, void* arg2)
 }
 static void timer_handlerII(void *arg1, void* arg2)
 {
-	if(!LedPoint)
+	if(!LedPoint)//配网过程关闭心跳包
 	{
 		hal_gpio_output_toggle(&led);
 	}
@@ -130,7 +130,7 @@ void GPIO_INIT(void)
 }
 
 ///////////////////////////上行帧处理///////////////////////////////
-
+//心跳包接收处理函数
 void heartbeatbufhandle(uint8_t *rxdata)
 {
 	for(i=0;i<10;i++)
@@ -140,50 +140,38 @@ void heartbeatbufhandle(uint8_t *rxdata)
 		if(CRCNUM==(rxdata[rx_size-4]<<8)+rxdata[rx_size-3])
 		{
 			hbcmd=rxdata[5];
-			if(ErrorCmd==1)ErrorCmd=2;
+			if(ErrorCmd==1)ErrorCmd=2;//若未接受到MCU的上报会断网报错，若再接受到正确的心跳包回应帧再联网
 			switch(hbcmd)
 			{
 				case 0x01:
 				memcpy(&heartbeatbuf01,rxdata+6,10);
-				//PortPro=1;
-				//user_post_property();
-				//HAL_Printf("AAAAAAAAAAAAAAAAAA\n");
 				break;
 				case 0x02:
 				memcpy(&heartbeatbuf02,rxdata+6,6);
-				//PortPro=2;
 				break;
 				case 0x03:
 				memcpy(&heartbeatbuf03,rxdata+6,9);
-				//PortPro=3;
 				break;
 				case 0x04:
 				memcpy(&heartbeatbuf04,rxdata+6,9);
-				//PortPro=4;
 				break;
 				case 0x05:
 				memcpy(&heartbeatbuf05,rxdata+6,9);
-				//PortPro=5;
 				break;
 				case 0x06:
 				memcpy(&heartbeatbuf06,rxdata+6,9);
-				//PortPro=6;
 				break;
 				case 0x07:
 				memcpy(&heartbeatbuf07,rxdata+6,9);
-				//PortPro=7;
 				break;
 				case 0x08:
 				memcpy(&heartbeatbuf08,rxdata+6,9);
-				//PortPro=8;
 				break;
 				case 0x09:
 				memcpy(&heartbeatbuf09,rxdata+6,9);
-				//PortPro=9;
 				break;
 				case 0x0A:
 				memcpy(&heartbeatbuf0A,rxdata+6,9);
-				//PortPro=10;
 				break;
 				case 0x0B:
 				memcpy(&heartbeatbuf0B,rxdata+6,8);
@@ -216,6 +204,7 @@ void heartbeatbufhandle(uint8_t *rxdata)
 		user_post_event();
 	}
 }
+//重新配网回应帧处理函数
 void DistributionUpHandle(uint8_t *rxdata)
 {
 	for(i=0;i<10;i++)
@@ -244,6 +233,7 @@ void DistributionUpHandle(uint8_t *rxdata)
 		user_post_event();
 	}
 }
+//档位设置回应帧处理函数
 void GearUpHandle(uint8_t *rxdata)
 {
 	for(i=0;i<10;i++)
@@ -273,6 +263,7 @@ void GearUpHandle(uint8_t *rxdata)
 		user_post_event();
 	}
 }
+//水箱设置回应帧处理函数
 void WaterboxSetUpHandle(uint8_t *rxdata)
 {
 	for(i=0;i<10;i++)
@@ -301,6 +292,7 @@ void WaterboxSetUpHandle(uint8_t *rxdata)
 		user_post_event();
 	}
 }
+//房间温度设置回应帧处理函数
 void RoomTemperUpHandle(uint8_t *rxdata)
 {
 	for(i=0;i<10;i++)
@@ -329,6 +321,7 @@ void RoomTemperUpHandle(uint8_t *rxdata)
 		user_post_event();
 	}
 }
+//水泵工作温度设置回应帧处理函数
 void WaterpumpTemperUpHandle(uint8_t *rxdata)
 {
 	for(i=0;i<10;i++)
@@ -357,6 +350,7 @@ void WaterpumpTemperUpHandle(uint8_t *rxdata)
 		user_post_event();
 	}
 }
+//定时设置回应帧处理函数
 void TimerSetUpHandle(uint8_t *rxdata)
 {
 	for(i=0;i<10;i++)
@@ -385,6 +379,7 @@ void TimerSetUpHandle(uint8_t *rxdata)
 		user_post_event();
 	}
 }
+//定时开关回应帧处理函数
 void TimerSwitchUpHandle(uint8_t *rxdata)
 {
 	for(i=0;i<10;i++)
@@ -413,6 +408,7 @@ void TimerSwitchUpHandle(uint8_t *rxdata)
 		user_post_event();
 	}
 }
+//控制模式回应帧处理函数
 void ControlModeUpHandle(uint8_t *rxdata)
 {
 	for(i=0;i<10;i++)
@@ -441,6 +437,7 @@ void ControlModeUpHandle(uint8_t *rxdata)
 		user_post_event();
 	}
 }
+//电源开关回应帧处理函数
 void SwitchUpHandle(uint8_t *rxdata)
 {
 	for(i=0;i<10;i++)
@@ -469,6 +466,7 @@ void SwitchUpHandle(uint8_t *rxdata)
 		user_post_event();
 	}
 }
+//设置实时时间回应帧处理函数
 void CurrentTimeSetHandle(uint8_t *rxdata)
 {
 	for(i=0;i<10;i++)
@@ -533,10 +531,10 @@ void DistributionDownFun(void)
 		DistributionNetworkDown[6]=CRCNUM/(1<<8);
 		DistributionNetworkDown[7]=CRCNUM%(1<<8);
 		
-		netmgr_clear_ap_config();
-		awss_report_reset();
-		ret=hal_flash_erase(HAL_PARTITION_PARAMETER_2, erasepoint, 1024);
-    HAL_Reboot();
+		netmgr_clear_ap_config();//清除网络信息
+		awss_report_reset();//解除APP账号绑定
+		ret=hal_flash_erase(HAL_PARTITION_PARAMETER_2, erasepoint, 1024);//WIFI信息存放在此扇区里，擦除存放的WIFI信息，未免多次联网后出现的扇区已满
+    HAL_Reboot();//重启设备
 		
 		//awss_config_press();
 	}
@@ -705,8 +703,8 @@ void CurrentTimeSetDownFun(void)
 	CurrentTimeDown[5]=nowtime.hour;
 	CurrentTimeDown[6]=nowtime.min;
 	CRCNUM=CalCrc16(CurrentTimeDown+2,5,0xFFFF);
-	ControlModeSetDown[8]=CRCNUM/(1<<8);
-	ControlModeSetDown[9]=CRCNUM%(1<<8);
+	ControlModeSetDown[7]=CRCNUM/(1<<8);
+	ControlModeSetDown[8]=CRCNUM%(1<<8);
 }
 void ForceSetDownFun(void)
 {
@@ -771,6 +769,7 @@ void AgrMentDownFun(uint8_t downcmd,uint8_t *requestarr)
 		case TimeSetCmd:
 		CurrentTimeSetDownFun();
 		ret = hal_uart_send(&uart1, CurrentTimeDown, sizeof(CurrentTimeDown), UART_TX_TIMEOUT);
+		break;
 		case ForceCmd:
 		ForceSetDownFun();
 		break;

@@ -9,6 +9,7 @@ typedef struct
 	uint8_t hour;
 	uint8_t min;
 }CurrentTime;
+
 enum SetCmd
 {
 	HeartbeatCmd=0x01,
